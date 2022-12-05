@@ -1,0 +1,67 @@
+version: "3.3"
+
+networks:
+  datascraper:
+
+volumes:
+  datascraper_postgres:
+
+services:
+  datascraper:
+    build: ../../
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:
+      POSTGRES_PASSWORD:
+      SPRING_PROFILES_ACTIVE: dev
+    ports:
+      - "${REST_API_PORT_DATASCRAPER}:8080"
+    depends_on:
+      - postgres
+      - selenium
+    volumes:
+      - /downloads/datascraper/reports:/downloads/datascraper/reports:rw
+
+  postgres:
+    image: postgres:12.4
+    restart: unless-stopped
+    networks:
+      datascraper:
+    ports:
+      - "54322:5432"
+    environment:
+      POSTGRES_DB: datascraper_db
+      POSTGRES_USER:
+      POSTGRES_PASSWORD:
+    volumes:
+      - datascraper_postgres:/var/lib/postgresql/data:rw
+
+  selenium-hub:
+    image: selenium/hub:4.3
+    restart: unless-stopped
+    networks:
+      datascraper:
+    ports:
+      - "4442:4442"
+      - "4443:4443"
+      - "4444:4444"
+
+  selenium:
+    image: selenium/node-chrome:91.0
+    restart: unless-stopped
+    shm_size: 2gb
+    networks:
+      datascraper:
+    ports:
+      - "5901-5999:5900"
+      - "7901-7999:7900"
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      #      - SE_NODE_MAX_SESSIONS=1
+      - CHROME=true
+    volumes:
+      - /dev/shm:/dev/shm
+    depends_on:
+      - selenium-hub
